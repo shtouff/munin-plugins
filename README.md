@@ -1,0 +1,1 @@
+some generic munin plugins
