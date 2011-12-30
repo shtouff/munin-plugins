@@ -1,4 +1,46 @@
 #!/usr/bin/env perl
+# -*-  perl -*-
+
+=head1 NAME
+
+redis_multikey - Munin plugin to monitor a collection of redis counters
+
+=head1 CONFIGURATION
+
+The counters to monitor are found in a special hash key in redis. So you have
+to name the plugin using a symlink of your choice (mycat_counters for example)
+and then to configure the mycat_counters with these values:
+
+  [mycat_counters]
+    env.server 127.0.0.1
+    env.port 6379
+    env.dbindex 2
+    env.key munin_mycat
+
+Put it in a file in /etc/munin/plugin-conf.d/ and restart the munin-node.
+
+=head1 USAGE 
+
+Link this plugin to /etc/munin/plugins/ and restart the munin-node.
+
+=head1 MAGIC MARKERS
+
+  #%# family=contrib
+  #%# capabilities=
+
+=head1 VERSION
+
+0.1
+
+=head1 AUTHOR
+
+Remi Paulmier
+
+=head1 LICENSE
+
+GPLv2
+
+=cut
 
 use strict;
 use warnings;
@@ -8,31 +50,54 @@ use Munin::Plugin;
 
 use Redis;
 
+my $VERSION="0.1";
+
+if (! (defined $ENV{'server'} && defined $ENV{'port'} &&
+       defined $ENV{'dbindex'} && defined $ENV{'key'}) ) {
+	if ( defined($ARGV[0]) and $ARGV[0] eq "autoconf" ) {
+		print "no\n";
+		exit 0;
+	}
+	die "missed server or port or dbindex or key.";
+} else {
+	if ( defined($ARGV[0]) and $ARGV[0] eq "autoconf" ) {
+		print "yes\n";
+		exit 0;
+	}
+}
+
 my $redis = Redis->new(server => "$ENV{'server'}:$ENV{'port'}" ) or die;
 $redis->select($ENV{'dbindex'}) or die;
 
-if ( defined($ARGV[0]) and $ARGV[0] eq "autoconf" ) {
-	print "yes\n";
-	exit 0;
-}
+
 
 if ( defined($ARGV[0]) and $ARGV[0] eq "config" ) {
 	map {
 		my $cname = $redis->hget($_, 'name');
 
-		print "multigraph $_\n";
-		print "graph_title $cname\n";
-		print "graph_category $Munin::Plugin::me\n\n";
+		print <<EOF
+multigraph $_
+graph_title $cname
+graph_category $Munin::Plugin::me
+
+counter.label $_
+counter.type GAUGE
+counter.draw LINE1
+
+EOF
 	} $redis->smembers($ENV{'key'});
 
 	exit 0;
 }
 
-# dump values
+# else dump values
 map {
 	my $cname = $redis->hget($_, 'name');
 	my $cvalue = $redis->hget($_, 'value');
 
-	print "multigraph $Munin::Plugin::me.$_\n";
-	print "counter.value " . $cvalue. "\n\n";
+	print <<EOF
+multigraph $_
+counter.value $cvalue
+
+EOF
 } $redis->smembers($ENV{'key'});
