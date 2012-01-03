@@ -82,7 +82,7 @@ graph_category $Munin::Plugin::me
 
 counter.label $_
 counter.type GAUGE
-counter.draw LINE1
+counter.draw LINE2
 
 EOF
 	} $redis->smembers($ENV{'key'});
