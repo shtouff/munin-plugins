@@ -69,9 +69,9 @@ open HPLOG, $hplog_t or die "can't open hplog\n";
 
 if ( defined($ARGV[0]) and $ARGV[0] eq "config" ) {
 	print <<EOF
-graph_title Temperatures
+graph_title temperatures
 graph_category HP
-grap_vlabel T in °$unit
+graph_vlabel T in °$unit
 EOF
 }
 while (<HPLOG>) {
