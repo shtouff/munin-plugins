@@ -1,0 +1,100 @@
+#!/usr/bin/env perl
+# -*-  perl -*-
+
+=head1 NAME
+
+hp_temp - Munin plugin to monitor temperatures on a HP Proliant server
+
+=head1 CONFIGURATION
+
+The plugin uses hplog, found in the hp-health package, to graph the temperature
+of several hardware sensors which are present in every HP Proliant server.
+
+You can configure the unit you want to display the temperatures with (C or F).
+Default value is C (celsius).
+
+  [hp-temp]
+    env.unit F
+
+Put it in a file in /etc/munin/plugin-conf.d/ and restart the munin-node.
+
+=head1 USAGE
+
+Link this plugin to /etc/munin/plugins/ and restart the munin-node.
+
+=head1 MAGIC MARKERS
+
+  #%# family=contrib
+  #%# capabilities=
+
+=head1 VERSION
+
+0.1
+
+=head1 AUTHOR
+
+Remi Paulmier
+
+=head1 LICENSE
+
+GPLv2
+
+=cut
+
+use strict;
+use warnings;
+
+use lib $ENV{'MUNIN_LIBDIR'};
+use Munin::Plugin;
+
+my $VERSION = "0.1";
+
+my $hplog_t = 'hplog -t |';
+#my $hplog_t = '</tmp/hplog.txt';
+my $unit = 'C';
+
+if ( defined($ARGV[0]) and $ARGV[0] eq "autoconf" ) {
+	print "no\n";
+	exit 0;
+}
+
+if (defined $ENV{'unit'}) {
+	if ($ENV{'unit'} eq 'C' ||$ENV{'unit'} eq 'F') {
+		$unit = $ENV{'unit'};
+	}
+}
+
+open HPLOG, $hplog_t or die "can't open hplog\n";
+
+
+if ( defined($ARGV[0]) and $ARGV[0] eq "config" ) {
+	print <<EOF
+graph_title Temperatures
+graph_category HP
+grap_vlabel T in °$unit
+EOF
+}
+while (<HPLOG>) {
+	chomp;
+	next if /^ID/;
+
+	if (my ($id, $location, $status, $curF, $curC, $thrF, $thrC) =
+	    m/^\ +(\d+)\ +Basic\ Sensor\ +(.+)\ +(\S+)\ +(\d+)F\/\ (\d+)C\ +(\d+)F\/\ (\d+)C/) {
+
+		if ( defined($ARGV[0]) and $ARGV[0] eq "config" ) {
+			my $thr = ($unit eq "C" ) ? $thrC: $thrF;
+			print <<EOF
+temp$id.label $location
+temp$id.type GAUGE
+temp$id.draw LINE2
+temp$id.critical $thr
+EOF
+		} else {
+			# values
+			my $cur = ($unit eq "C" ) ? $curC: $curF;
+			print <<EOF
+temp$id.value $cur
+EOF
+		}
+	}
+}
